@@ -1,7 +1,7 @@
 <?php
 
 
-namespace Dakine\Model;
+namespace DaKine\Model;
 
 
 use Illuminate\Database\Eloquent\Model as Eloquent;

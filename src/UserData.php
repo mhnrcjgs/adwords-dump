@@ -1,11 +1,14 @@
 <?php
 
 
-namespace Dakine;
+namespace DaKine;
 
 
+use Aws\S3\S3Client;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use DaKine\Model\ArchiveUser;
+use DaKine\Model\User;
+use Illuminate\Database\Capsule\Manager as DB;
 use Illuminate\Support\Facades\Storage;
 use League\Csv\Writer;
 use SplTempFileObject;
@@ -16,11 +19,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class UserData extends Command
 {
+    /**
+     *
+     */
 
 
     public function configure()
     {
-        $this->setName('data-to-csv')
+        $this->setName('user-data')
             ->setDescription('Create report to csv')
             ->addArgument('toDate', InputArgument::REQUIRED, 'date where report ends');
     }
@@ -29,19 +35,9 @@ class UserData extends Command
     public function execute(InputInterface $input, OutputInterface $output)
     {
 
-        $date = $this->argument('toDate');
+        $date = Carbon::parse($input->getArgument('toDate'))->toDateString();
 
-        if (!$date) {
-            $date = Carbon::now()->subDay();
-        }
-
-        $date = Carbon::parse($date)->toDateString();
-
-        $userModel = env('BRAINLABS_USER_MODEL', 'User');
-
-        $userClass = new $userModel();
-
-        $query = $userClass::where(DB::raw('date(users.'.env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on').')'), '<=', $date);
+        $query = User::where(DB::raw('date(users.'.env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on').')'), '<=', $date);
 
         $select = ['email', 'users.'.env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on'),
             'users.'.env('BRAINLABS_UNSUBSCRIBED_ON', 'unsubscribed_on')];
@@ -70,11 +66,8 @@ class UserData extends Command
 
         if (env('BRAINLABS_ARCHIVE_USER_TABLE', false)) {
 
-            $archivedUserModel = env('BRAINLABS_ARCHIVE_USER_MODEL', 'ArchiveUser');
 
-            $archivedUserClass = new $archivedUserModel();
-
-            $archiveData = $archivedUserClass::select('email', env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on'),
+            $archiveData = ArchiveUser::select('email', env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on'),
                 env('BRAINLABS_UNSUBSCRIBED_ON', 'unsubscribed_on'), 'refunded')
                 ->where(env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on'), '<=', $date)
                 ->get();
@@ -82,11 +75,38 @@ class UserData extends Command
             $this->populateCsv($archiveData, $csv);
         }
 
-        Storage::disk('adwords_s3')->put($date.'_'.env('BRAINLABS_SERVICE_NAME', 'plustelecom_service').'_dump.csv', (string) $csv, 'public');
+        $s3 = new S3Client([
+            'version' => 'latest',
+            'region'  => env('S3_REGION', 'us-east-1'),
+            'credentials' => [
+                'key' => env('S3_KEY'),
+                'secret' => env('S3_SECRET')
+            ]
+        ]);
 
-        $url = Storage::disk('adwords_s3')->url($date.'_'.env('BRAINLABS_SERVICE_NAME', 'plustelecom_service').'_dump.csv');
+        $key =  $date.'_'.env('BRAINLABS_SERVICE_NAME', 'plustelecom_service').'_dump.csv';
 
-        $this->line($url);
+        $s3->putObject([
+            'ACL' => 'public-read',
+            'Body' => (string) $csv,
+            'Bucket' => env('S3_BUCKET'),
+            'ContentType' => 'text/plain',
+            'Key' => $key
+        ]);
+
+        $url = $s3->getObjectUrl(env('S3_BUCKET'), $key);
+
+        $output->writeln($url);
+
+
+
+//        Storage::disk('adwords_s3')->put($date.'_'.env('BRAINLABS_SERVICE_NAME', 'plustelecom_service').'_dump.csv', (string) $csv, 'public');
+//
+//        dd('test');
+//
+//        $url = Storage::disk('adwords_s3')->url($date.'_'.env('BRAINLABS_SERVICE_NAME', 'plustelecom_service').'_dump.csv');
+//
+//        $this->line($url);
 
 
     }
