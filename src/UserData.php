@@ -4,6 +4,7 @@
 namespace DaKine;
 
 
+use Aws\S3\S3Client;
 use Carbon\Carbon;
 use DaKine\Model\User;
 use Illuminate\Database\Capsule\Manager as DB;
