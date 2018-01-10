@@ -37,7 +37,9 @@ class UserData extends Command
 
         $date = Carbon::parse($input->getArgument('toDate'))->toDateString();
 
-        $query = User::where(DB::raw('date(users.'.env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on').')'), '<=', $date);
+        $query = User::whereNotNull('email')->whereNotNull(DB::raw('date(users.'.env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on').')'))
+            ->where(DB::raw('date(users.'.env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on').')'),'!=', '0000-00-00 00:00:00')
+            ->where(DB::raw('date(users.'.env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on').')'), '<=', $date);
 
         $select = ['email', 'users.'.env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on'),
             'users.'.env('BRAINLABS_UNSUBSCRIBED_ON', 'unsubscribed_on')];
