@@ -4,14 +4,12 @@
 namespace DaKine;
 
 
-use Aws\S3\S3Client;
 use Carbon\Carbon;
-use DaKine\Model\ArchiveUser;
 use DaKine\Model\User;
 use Illuminate\Database\Capsule\Manager as DB;
-use Illuminate\Support\Facades\Storage;
 use League\Csv\Writer;
-use MongoDB\Client;
+use MongoDB\Driver\Manager;
+use MongoDB\Driver\Query;
 use SplTempFileObject;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -70,14 +68,15 @@ class UserData extends Command
 
         if (env('BRAINLABS_ARCHIVE_USER_TABLE', false)) {
 
-            $client = new Client("mongodb://localhost:27017");
-            $collection = $client->vehicleinformation_archive->users;
+            $manager = new Manager("mongodb://localhost:27017");
 
-            $archiveData = $collection->find([env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on') => ['$lte', $date], 'email' => ['$and' => [['$ne', null],['$ne', '0000-00-00 00:00:00']]]],
+            $query = new Query([env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on') => ['$lte', $date], 'email' => ['$and' => [['$ne', null],['$ne', '0000-00-00 00:00:00']]]],
                 ['projection' => ['email' => 1, env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on') => 1,
                     env('BRAINLABS_UNSUBSCRIBED_ON', 'unsubscribed_on') => 1, 'refunded' => 1, '_id' => 0]]);
 
-            $this->populateCsv($archiveData, $csv);
+            $cursor = $manager->executeQuery('vehicleinformation_archive.users', $query);
+
+            $this->populateCsv($cursor->toArray(), $csv);
 
         }
 
