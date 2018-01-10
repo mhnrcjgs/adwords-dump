@@ -77,7 +77,7 @@ class UserData extends Command
 
             $cursor = $manager->executeQuery('vehicleinformation_archive.users', $query);
 
-            $this->populateCsv($cursor->toArray(), $csv);
+            $this->populateCsv($cursor, $csv);
 
         }
 
