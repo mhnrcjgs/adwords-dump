@@ -71,7 +71,7 @@ class UserData extends Command
 
             $manager = new Manager("mongodb://localhost:27017");
 
-            $query = new Query([env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on') => ['$lte', $date], 'email' => ['$and' => [['$ne', null],['$ne', '0000-00-00 00:00:00']]]],
+            $query = new Query([env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on') => ['$lte', $date], '$and' => [['email' => ['$ne', null]],['email' => ['$ne', '0000-00-00 00:00:00']]]],
                 ['projection' => ['email' => 1, env('BRAINLABS_SUBSCRIBED_ON', 'subscribed_on') => 1,
                     env('BRAINLABS_UNSUBSCRIBED_ON', 'unsubscribed_on') => 1, 'refunded' => 1, '_id' => 0]]);
 
