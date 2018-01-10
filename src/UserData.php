@@ -58,13 +58,16 @@ class UserData extends Command
 
         }
 
-        $data = $query->select($select)->get();
 
         $csv = Writer::createFromFileObject(new SplTempFileObject());
 
         $csv->insertOne(['email', 'subscription']);
 
-        $this->populateCsv($data, $csv);
+        $query->select($select)->chunk(50000, function ($users) use ($csv) {
+            $this->populateCsv($users, $csv);
+        });
+
+
 
         if (env('BRAINLABS_ARCHIVE_USER_TABLE', false)) {
 
